@@ -65,30 +65,23 @@ public class Sudoku implements Constrained {
 
                 // key
                 .given(Cell.ordinals(8, 8), 5)
-                .thermo(Cell.ordinals(8, 8), OrthogonalDirection.S)
+//                .thermo(Cell.ordinals(8, 8), OrthogonalDirection.S)
 
                 // cross
                 .thermoBulbless(Cell.ordinals(1, 1), DiagonalDirection.SE, DiagonalDirection.SE, DiagonalDirection.SE)
                 .thermoBulbless(Cell.ordinals(1, 4), DiagonalDirection.SW, DiagonalDirection.SW, DiagonalDirection.SW)
 
-                // cross kropki
+                // cross kropki NW
                 .kropkiWhite(Cell.ordinals(1, 3), OrthogonalDirection.S)
                 .kropkiWhite(Cell.ordinals(3, 1), OrthogonalDirection.E)
 
-                // corner
-                .thermoBulbless(Cell.ordinals(5, 3), OrthogonalDirection.N, DiagonalDirection.NE, OrthogonalDirection.E)
+                // corner kropki
                 .kropkiWhite(Cell.ordinals(4, 3), OrthogonalDirection.E)
                 .kropkiWhite(Cell.ordinals(3, 4), OrthogonalDirection.S)
 
-                // corner
-//                .thermoBulbless(Cell.ordinals(6, 4), DiagonalDirection.SW, DiagonalDirection.SW)
-//                .thermoBulbless(Cell.ordinals(4, 6), DiagonalDirection.NE, DiagonalDirection.NE)
-
-                // main
-                .kropkiWhite(Cell.ordinals(4, 1), OrthogonalDirection.E)
-                .kropkiWhite(Cell.ordinals(1, 4), OrthogonalDirection.S)
-//                .kropkiWhite(Cell.ordinals(3, 7), OrthogonalDirection.E)
-//                .kropkiWhite(Cell.ordinals(3, 7), OrthogonalDirection.S)
+                // wings
+                .thermoBulbless(Cell.ordinals(4, 2), DiagonalDirection.SW, DiagonalDirection.SE, DiagonalDirection.SE)
+                .thermoBulbless(Cell.ordinals(2, 4), DiagonalDirection.NE, DiagonalDirection.SE, DiagonalDirection.SE)
 
                 .solve(new NoOpSolutionListener(), 1);
 //                .solve(new CumulativeSolutionListener(), 1);
@@ -100,7 +93,7 @@ public class Sudoku implements Constrained {
         model.getSolver().plugMonitor(monitor);
         while (model.getSolver().solve()) ;
         T accumulator = monitor.getAccumulator();
-//        System.out.println(listener.toString(accumulator, boxLength, gridLength));
+        System.out.println(listener.toString(accumulator, boxLength, gridLength));
         return monitor.getAccumulator();
     }
 
@@ -169,6 +162,12 @@ public class Sudoku implements Constrained {
         return this;
     }
 
+    public Sudoku quadruple(Cell topLeft, int... possibilities) {
+        Args.gte(possibilities.length, 1);
+        new Quadruple(topLeft, possibilities).addConstraint(this);
+        return this;
+    }
+
     public Sudoku v(Cell cell, OrthogonalDirection direction) {
         return sum(5, cell, cell.inDirection(direction));
     }
@@ -215,6 +214,21 @@ public class Sudoku implements Constrained {
         return this;
     }
 
+    public Sudoku lt(Cell a, OrthogonalDirection directional) {
+        new LT(a, a.inDirection(directional)).addConstraint(this);
+        return this;
+    }
+
+    public Sudoku eq(Cell a, Cell b) {
+        new EQ(a, b).addConstraint(this);
+        return this;
+    }
+
+    public Sudoku not(Cell a, int... values) {
+        new Not(a, values).addConstraint(this);
+        return this;
+    }
+
     public Sudoku kropkiWhite(Cell a, OrthogonalDirection direction) {
         return difference(a, a.inDirection(direction), 1);
     }
@@ -238,8 +252,9 @@ public class Sudoku implements Constrained {
     public Sudoku arrow(Cell head, Directional... directionals) {
         Args.gte(directionals.length, 1);
         Cell[] line = new Cell[directionals.length];
-        for (int i = 0; i < directionals.length; i++) {
-            line[i] = line[i].inDirection(directionals[i]);
+        line[0] = head.inDirection(directionals[0]);
+        for (int i = 1; i < directionals.length; i++) {
+            line[i] = line[i - 1].inDirection(directionals[i]);
         }
         new Arrow(head, line).addConstraint(this);
         return this;
@@ -253,6 +268,17 @@ public class Sudoku implements Constrained {
             line[i + 1] = line[i].inDirection(directionals[i]);
         }
         new Palindrome(line).addConstraint(this);
+        return this;
+    }
+
+    public Sudoku renban(Cell start, Directional... directionals) {
+        Args.gte(directionals.length, 1);
+        Cell[] line = new Cell[directionals.length + 1];
+        line[0] = start;
+        for (int i = 0; i < directionals.length; i++) {
+            line[i + 1] = line[i].inDirection(directionals[i]);
+        }
+        new Renban(line).addConstraint(this);
         return this;
     }
 
